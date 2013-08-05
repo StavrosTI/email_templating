@@ -1,8 +1,8 @@
 <?php
 /** 
  * EmailGenerator
- *
- *
+ * 
+ * 
  * 
  * Copyright (c) 2013 Travel Impressions
  * 
@@ -39,11 +39,16 @@
 	private $modulesArray = Array();				// array of files from input folder
 	private $assetsArray = Array();					// array of files from input folder
 	private $excelSourceSize = "email.html";		// Name of the email to be generated
-	private $emailName = "email.html";				// Name of the email to be generated
 	
-	private $ftpLogin = "";							// FTP Login
-	private $ftpPass = "";							// FTP Password
-	private $ftpPort = "";							// FTP Port
+	private $ftpLogin = "jeffc";					// FTP Login
+	private $ftpPass = "cvq5am";					// FTP Password
+	private $ftpQaHost = "boa";						// FTP QA host
+	private $ftpProdHost = "cobra";					// FTP Production host
+	private $ftpPort = "22";						// FTP Port
+	
+	private $emailName = "email.html";				// Name of the email to be generated
+	private $emailBrand = "";							
+	private $emailType = "";						
 	
 	private	$logPath = "logs/";						// path for logs
 	private $logFile = "";							// log file
@@ -315,7 +320,7 @@
 		unset($this->modulesArray[(count($this->modulesArray)-1)]);
 		
 		$this->totalModules = count($this->modulesArray);
-		var_dump($this->modulesArray);
+			//var_dump($this->modulesArray);
 	}
 	
 	/**
@@ -326,10 +331,11 @@
 		$remove = array ("module", "");
 		$moduleName = str_replace( $remove, "", strtolower($moduleName) );
 		$moduleName .= '.html';
-		var_dump($moduleName);
+			//var_dump($moduleName);
+			
 		if ( in_array( $moduleName, $this->modulesArray ) ) {
 			$moduleHtml = file_get_contents( $this->modules.$moduleName );
-			var_dump($moduleHtml);
+				//var_dump($moduleHtml);
 			return $moduleHtml;
 		} else {
 			return FALSE;
@@ -345,16 +351,57 @@
 		unset($this->assetsArray[(count($this->assetsArray)-1)]);
 		
 		$this->totalAssets = count($this->assetsArray);
-		var_dump($this->assetsArray);
+			//var_dump($this->assetsArray);
+	}
+	
+	/**
+	 * Initializes the email generation parameters
+	 */
+	public function initialize_email_parameters ( $type, $brand ) {
+		
+		//ToDo:  Put parameters in a config files and read in.
+			//var_dump($brand);
+			//var_dump($type);
+			
+		$params = "";
+		
+		if ( $brand == "TravelImpressions" ) { 
+
+			$params['paths'] = array(
+				'qa_html' => "http://qa.travimp.com/email/",
+				'qa_img' => "http://qa.travimp.com/email/img/",
+				'prod_html' => "http://www.travimp.com/email/",
+				'prod_img' => "http://www.travimp.com/email/img/", 
+			);
+		} elseif ( $brand == "AmericanExpress" ) {
+
+			$params['paths'] = array(
+				'qa_html' => "http://qa.myaev.com/email/",
+				'qa_img' => "http://qa.myaev.com/email/img/",
+				'prod_html' => "http://www.myaev.com/email/",
+				'prod_img' => "http://www.myaev.com/email/img/" 
+			);
+		} else {
+		
+			//return error
+		}
+		
+		//email types --
+		//Makeover Mondays
+		//Marketing Mondays
+		//Two For Tuesdays
+		//Amazing Getaways
+		//Caribbean Getaways
+		//Mexico Getaways
+		//Groups
+		
+		return $params;
 	}
 	
 	/**
 	 * Read in Excel Source File.  Reads in the 'header' information seperately, then reads in one module section at a time.
 	 */
 	public function read_excel_source ( $sourceFileName ) {
-	
-		//TODO: add url link checker.
-		//TODO: add specs checker.
 		
 		$fileType = PHPExcel_IOFactory::identify($sourceFileName);
 		$objReader = PHPExcel_IOFactory::createReader($fileType);
@@ -364,51 +411,67 @@
 		$objWorksheet = $objPHPExcel->getActiveSheet();
 		
 		//Reader Excel Source 'Header'
-		$this->emailName = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B1')->getValue() ) ) );	//Hard-coded into Excel Template
-		$mailingType = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B4')->getValue() ) ) );	//Hard-coded into Excel Template
-		$mailingBrand = str_replace( " ", "", ucfirst( strtolower( $objWorksheet->getCell('B5')->getValue() ) ) );	//Hard-coded into Excel Template
+		$this->emailName = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B1')->getValue() ) ) );
+		$this->emailType = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B2')->getValue() ) ) );
+		$this->emailBrand = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B3')->getValue() ) ) );
+		$this->emailSubject = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B4')->getValue() ) ) );
+		$this->emailDeadline = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B5')->getValue() ) ) );
+		$this->emailMailDate = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B6')->getValue() ) ) );
+		
 		
 		$lastRow = $objWorksheet->getHighestRow();
 		
 		$emailData = array();
-		for($row = 6; $row <= $lastRow; $row++) {
+		$module = '';
+		for($row = 7; $row <= $lastRow; $row++) {
 		
-			//Can check key here to see if start of 'module'
 			$tag = $objWorksheet->getCell('A'.$row)->getValue();	//placeholder key
 				//var_dump($tag);
 			if ( stripos($tag, 'module') === FALSE ) {
-				$spec = $objWorksheet->getCell('B'.$row)->getFormattedValue();	//placeholder value
-				$val = $objWorksheet->getCell('C'.$row)->getFormattedValue();	//placeholder value
+				$spec = $objWorksheet->getCell('B'.$row)->getFormattedValue();
+				$type = $objWorksheet->getCell('C'.$row)->getFormattedValue();
+				$val = $objWorksheet->getCell('D'.$row)->getFormattedValue();
 				//var_dump($val);
 					
+				$emailData[$module][$tag]['type'] = $type;
 				$emailData[$module][$tag]['spec'] = $spec;
 				$emailData[$module][$tag]['val'] = $val;
-				//$emailData[$tag]['spec'] = $spec;
-				//$emailData[$tag]['val'] = $val;
 			} else {
 			
 				$module = $tag;
-					//echo "Start of new module: " . $module;
+					//echo "Start of new module: " . $module . "<br>";
 			}
 		}
 		return $emailData;
 	}
 	
 	/**
-	 * Loops through all the files in the 'inputArray' property array and replaces out strings in the 'terms' property array
+	 * Parses all the 'modules' in the emailData array and replaces out the tags from each module html set.  Builds the email in the order the array is stacked.
+	 *
+	 * @param array	$emailData	array with all the email data pulled from the excel template
+	 * @param bool	$qa			runs the method in 'qa' mode, linking all images to the the qa server
 	 */
-	public function build_html ( $emailData ) {
+	public function build_html ( $emailData, $qa=0 ) {
 	
-		$emailHtml = "";
-		//var_dump($emailData);	
+		//TODO: add url link checker.
+		//TODO: add specs checker.
+	
+		//Adding opening wrapper
+		$topHtml = $this->get_module('top');
+		$topHtml = str_replace('##EmailType##', $this->emailType, $topHtml);
+		$topHtml = str_replace('##EmailBrand##', $this->emailBrand, $topHtml);
+		$emailHtml = $topHtml;
+		
+		$params = $this->initialize_email_parameters( $this->emailType, $this->emailBrand );
+			//var_dump($params);
 			
 		//Iterate through the modules
 		foreach( $emailData as $key=>$val ) {
 		
-			echo "Processing: ", $key, "<br>";
-			//var_dump($val);
+				//echo "Processing: ", $key, "<br>";
+				//var_dump($val);
 			$curModuleHtml = $this->get_module( $key );
-			//var_dump($curModuleHtml);
+				//var_dump($curModuleHtml);
 			
 			if ( $curModuleHtml ) {
 			
@@ -416,11 +479,35 @@
 
 				//iterate throught the module tags
 				foreach ( $val as $tag=>$tagDetails ) {
+				
+					if ( $tagDetails['type'] == 'url' ) {
+						//validate URL
+						$file_headers = @get_headers($tagDetails['val']);
+						if($file_headers[0] == 'HTTP/1.1 404 Not Found') {
+							echo "Warning: " . $tagDetails['val'] . "<br> is not a valid URL";
+						}
+					}
+					if ( $tagDetails['type'] == 'img' ) {
+						$path = ( $qa ) ? $params['paths']['qa_img'] : $params['paths']['prod_img'];
+						$tagDetails['val'] = $path.$tagDetails['val'];
+						
+						// TODO: validate image dimensions
+					}
+					if ($tagDetails['type'] == 'text' ) {
+						if ( strlen($tagDetails['val']) > $tagDetails['spec'] ) {
+							echo "Warning: Character count for '" . $tag . "' is more than " . $tagDetails['spec'] . " characters.<br>";
+						}
+					}
+					if ( $tagDetails['type'] == 'html' ) {
+						
+						// TODO: HTML validation
+						
+					}
 					
 					$tag = str_replace ( " ", "", OPEN_TAG . trim($tag) . CLOSE_TAG );
-					
-						var_dump($tag);
+						//var_dump($tag);
 						//var_dump($tagDetails);
+						
 					$replacedModuleHtml = str_replace($tag, $tagDetails['val'], $replacedModuleHtml, $count);
 				}
 				
@@ -429,65 +516,154 @@
 			}	
 		}
 		
+		//Adding closing wrapper
+		$emailHtml .= $this->get_module('bottom');
+		
 		return $emailHtml;
-		
-		/*
-			$fileName = $val;	//easier to understand
-			$filePath = $this->input.$fileName;
-			$fh = fopen($filePath, 'r');
-			$fileData = fread($fh, filesize($filePath));
-
-			$total_count = 0;
-		
-			if ( $fileData ) {
-				$fileData_replaced = $fileData;
-				
-				foreach ($this->terms as $terms) {
-					$result = '';
-					
-					
-					//echo "Replacing this: ", $terms[0], "<br>";
-					//echo "with this: ", $terms[1], "<br>";
-					//echo "File: " . $filePath . "<br>";
-					
-
-					$fileData_replaced = str_replace($terms[0], $terms[1], $fileData_replaced, $count);
-					//echo "Replaced text: <br>" . $fileData_replaced . "<br>";
-					$result = ( $count ) ? "Success" : "No Replacement/Failure";
-
-					//record replacement results
-					$this->record_output( $fileName, $result, $terms[0], $this->timer() );
-					
-					//record statistics
-					if ( $count ) {	
-						$this->stats( 1, 0, 1, $count);	
-						$total_count += $count;
-					}
-				}
-				
-				echo "File: ", $filePath, "<br>";
-				echo "Total File Replacements: ", $total_count, "<br><br>";
-				//Write output file to output directory
-				$this->write_replaced_files( $fileName, $fileData_replaced, $total_count );	
-				
-				// After all terms have been run against the file, close the handler.
-				fclose($fh);
-			}
-		}
-		*/
 	}
 	
 	/**
-	 * Loops through all the files in the 'inputArray' property array and replaces out strings in the 'terms' property array
+	 * FTP function
 	 */
-	public function dump_html ( $emailHtml, $emailName="" ) {
+	public function push_ftp( $fileName, $assets=1, $qa=0 ) {
+		// FTP script adapted from http://nirvaat.com/blog/web-development/uploading-files-ftp-server-php-script/
 	
-		$emailName = ( $emailName != "" ) ? $emailName : $this->emailName;
-		$result = file_put_contents($this->output.$emailName, $emailHtml);
+		//TODO: Put remote assets in a config file and initialize on run.
+	
+		//Setup the remote directories
+		if ( $qa ) {
+			if ( $this->emailBrand = "TravelImpressions" ) {
+				$remote_html_dir = "/home/sites/fyi/email";
+				$remote_assets_dir = "/home/sites/fyi/email/img";
+			} elseif ( $this->emailBrand = "AmericanExpress" ) {
+				$remote_html_dir = "/home/sites/myaev/email";
+				$remote_assets_dir = "/home/sites/myaev/email/img";
+			}
+		} else {
+			if ( $this->emailBrand = "TravelImpressions" ) {
+				$remote_html_dir = "/home/myaev/email";
+				$remote_assets_dir = "/home/myaev/email/img";
+			} elseif ( $this->emailBrand = "AmericanExpress" ) {
+				$remote_html_dir = "/home/web/email";
+				$remote_assets_dir = "/home/web/email/img";
+			}
+		}
+		if ( $remote_html_dir == "" && $remote_assets_dir == "" ) { return FALSE; }	//Don't FTP anything if no brand specified		
+
+		// set up basic connection
+		$ftp_server = ( $qa ) ? $this->ftpQaHost : $this->ftpProdHost;
+		$conn_id = ( $qa ) ? ftp_connect($ftp_server) :  ftp_connect($ftp_server);
+
+		// login with username and password
+		$login_result = @ftp_login($conn_id, $this->ftpLogin, $this->ftpPass);
 		
-		return ( $result === FALSE ) ? FALSE : TRUE;
+		//default values
+		$file_url = $fileName;
+
+		if($login_result) {
+			//set passive mode enabled
+			ftp_pasv($conn_id, true);
+
+			//// FTP email HTML
+			ftp_chdir($conn_id, $remote_html_dir);
+
+			$file = $this->output . $file_url;
+			$remote_file = $file_url;
+				
+			echo "Copying '" . $fileName . "' to '(" . $ftp_server . ") " . $remote_html_dir . "/" . $remote_file . "<br>";
+			
+			//Check if file already exists and replace (delete, then write new file)
+			if ( ftp_size($conn_id, $remote_file) > -1 ) { 
+				echo "File '" . $remote_file . "' already exists on server....<br>";
+				if ( ftp_delete( $conn_id, $remote_file ) ) {
+					echo "The file '". $remote_file . "' was successfully removed and will be replaced.<br>";
+				} else {
+					echo "There was an error replacing the file '". $remote_file . "'.<br>";
+				}
+			}
+				
+			$ret = ftp_nb_put($conn_id, $remote_file, $file, FTP_BINARY, FTP_AUTORESUME);
+			while(FTP_MOREDATA == $ret) {
+				$ret = ftp_nb_continue($conn_id);
+			}
+
+			if($ret == FTP_FINISHED) {
+				echo "File '" . $remote_file . "' uploaded successfully.<br>";
+			} else {
+				echo "Failed uploading file '" . $remote_file . "'.<br>";
+			}
+			
+			//// FTP email image assets
+				//var_dump($this->assetsArray);
+			
+			ftp_chdir($conn_id, $remote_assets_dir);
+			
+			foreach ( $this->assetsArray as $img_asset ) {
+				
+				$file = $this->assets . $img_asset;
+				$remote_file = $img_asset;
+					
+				echo "Copying '" . $img_asset . "' to '(" . $ftp_server . ") " . $remote_assets_dir . "/" . $remote_file . "<br>";
+				
+				
+				$ret = ftp_nb_put($conn_id, $remote_file, $file, FTP_BINARY, FTP_AUTORESUME);
+				while(FTP_MOREDATA == $ret) {
+					$ret = ftp_nb_continue($conn_id);
+				}
+
+				if($ret == FTP_FINISHED) {
+					echo "File '" . $remote_file . "' uploaded successfully.<br>";
+				} else {
+					echo "Failed uploading file '" . $remote_file . "'.<br>";
+				}
+				
+			}
+			
+		} else {
+			echo "Cannot connect to FTP server at " . $ftp_server . "<br>";
+		}
+	}
+	
+	/**
+	 * Write the html to the 'output' folder
+	 */
+	public function dump_html( $emailHtml, $emailName="" ) {
+	
+		//ToDo: Add QA version to output
+	
+		$emailName = ( $emailName != "" ) ? $emailName : $this->emailName.'.html';
+		$emailPath = $this->output.$emailName;
+		
+		$result = file_put_contents($emailPath, $emailHtml);
+		
+		return ( $result === FALSE ) ? FALSE : $emailName;
+	}
+	
+	/**
+	 * Output the QA and Live Html Links
+	 */
+	public function output_links( $emailName, $qa=1, $live=1 ) {
+	
+		$params = $this->initialize_email_parameters( $this->emailType, $this->emailBrand );
+			//var_dump($params);
+			
+		if ( $qa ) {
+			echo "QA Email Link: ";
+			echo "<a href=\"". $params['paths']['qa_html'] . $emailName . "\">";
+			echo $params['paths']['qa_html'] . $emailName;
+			echo "</a><br><br>";
+		}
+		if ( $live ) {
+			echo "Live Email Link: ";
+			echo "<a href=\"". $params['paths']['prod_html'] . $emailName . "\">";
+			echo $params['paths']['prod_html'] . $emailName;
+			echo "</a><br>";
+		}
+		return 0;
 	}
 }	//close EmailGenerator class
+ 
+ 
  
  if ( isset($_POST['submit']) ) { 
 	
@@ -509,22 +685,19 @@
 	$email->get_assets();
 	$email->load_modules();
  
-	//$email->timer(0,1);		//start the timer
-	$emailHtml = $email->build_html( $emailData );
-	$email->dump_html( $emailHtml );
+	//Build, Output, and FTP QA version of email
+	$emailHtml = $email->build_html( $emailData, 1);
+	$dump_result = $email->dump_html( $emailHtml );
+	//$email->push_ftp( $dump_result, 1, 1); 
+
 	
-	//FTP HTML and assets
+	//Build, Output, and FTP PROD version of email
+	$emailHtml = $email->build_html( $emailData);
+	$dump_result = $email->dump_html( $emailHtml );
+	//$email->push_ftp( $this->output . $dump_result );
+
 	
-	/*
-	echo "<hr>";
-	echo "Total processing time: " . $email->timer(2) . "s<br>";
-	
-	echo "Total input files: " . $email->stats(0,1) . "<br>";
-	echo "Total files with replacements: " . $email->stats(0,2) . "<br>";
-	echo "Total file replacements: " . $email->stats(0,3) . "<br>";
-	*/
-	
-	//$email->dump_output_results();
+	$email->output_links( $dump_result );
  }
   
 if (!isset($_POST['submit']) || isset($err) ) {
