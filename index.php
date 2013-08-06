@@ -484,7 +484,7 @@
 						//validate URL
 						$file_headers = @get_headers($tagDetails['val']);
 						if($file_headers[0] == 'HTTP/1.1 404 Not Found') {
-							echo "Warning: " . $tagDetails['val'] . "<br> is not a valid URL";
+							echo "<div class=\"msg-warn\">Warning: " . $tagDetails['val'] . "<br> is not a valid URL.</div>";
 						}
 					}
 					if ( $tagDetails['type'] == 'img' ) {
@@ -495,7 +495,7 @@
 					}
 					if ($tagDetails['type'] == 'text' ) {
 						if ( strlen($tagDetails['val']) > $tagDetails['spec'] ) {
-							echo "Warning: Character count for '" . $tag . "' is more than " . $tagDetails['spec'] . " characters.<br>";
+							echo "<div class=\"msg-warn\">Warning: Character count for '" . $tag . "' is more than " . $tagDetails['spec'] . " characters.</div>";
 						}
 					}
 					if ( $tagDetails['type'] == 'html' ) {
@@ -548,7 +548,11 @@
 				$remote_assets_dir = "/home/web/email/img";
 			}
 		}
-		if ( $remote_html_dir == "" && $remote_assets_dir == "" ) { return FALSE; }	//Don't FTP anything if no brand specified		
+		//Don't FTP anything if no brand specified		
+		if ( $remote_html_dir == "" && $remote_assets_dir == "" ) { 
+			echo "<div class=\"msg-error\">No email brand specified in source.  No files have been uploaded.</div>";
+			return FALSE; 
+		}
 
 		// set up basic connection
 		$ftp_server = ( $qa ) ? $this->ftpQaHost : $this->ftpProdHost;
@@ -570,15 +574,15 @@
 			$file = $this->output . $file_url;
 			$remote_file = $file_url;
 				
-			echo "Copying '" . $fileName . "' to '(" . $ftp_server . ") " . $remote_html_dir . "/" . $remote_file . "<br>";
+			//echo "Copying '" . $fileName . "' to '(" . $ftp_server . ") " . $remote_html_dir . "/" . $remote_file . "<br>";
 			
 			//Check if file already exists and replace (delete, then write new file)
 			if ( ftp_size($conn_id, $remote_file) > -1 ) { 
-				echo "File '" . $remote_file . "' already exists on server....<br>";
+				echo "<div class=\"msg-info\">File '" . $remote_file . "' already exists on server....</div>";
 				if ( ftp_delete( $conn_id, $remote_file ) ) {
-					echo "The file '". $remote_file . "' was successfully removed and will be replaced.<br>";
+					echo "<div class=\"msg-success\">The file '". $remote_file . "' was successfully removed and will be replaced.</div>";
 				} else {
-					echo "There was an error replacing the file '". $remote_file . "'.<br>";
+					echo "<div class=\"msg-error\">There was an error replacing the file '". $remote_file . "'.</div>";
 				}
 			}
 				
@@ -588,9 +592,9 @@
 			}
 
 			if($ret == FTP_FINISHED) {
-				echo "File '" . $remote_file . "' uploaded successfully.<br>";
+				echo "<div class=\"msg-success\">File '" . $remote_file . "' uploaded successfully.</div>";
 			} else {
-				echo "Failed uploading file '" . $remote_file . "'.<br>";
+				echo "<div class=\"msg-error\">Failed uploading file '" . $remote_file . "'.</div>";
 			}
 			
 			//// FTP email image assets
@@ -603,8 +607,17 @@
 				$file = $this->assets . $img_asset;
 				$remote_file = $img_asset;
 					
-				echo "Copying '" . $img_asset . "' to '(" . $ftp_server . ") " . $remote_assets_dir . "/" . $remote_file . "<br>";
+				//echo "<div class=\"msg-info\">Copying '" . $img_asset . "' to '(" . $ftp_server . ") " . $remote_assets_dir . "/" . $remote_file . "</div>";
 				
+				//Check if file already exists and replace (delete, then write new file)
+				if ( ftp_size($conn_id, $remote_file) > -1 ) { 
+					echo "<div class=\"msg-info\">File '" . $remote_file . "' already exists on server....</div>";
+					if ( ftp_delete( $conn_id, $remote_file ) ) {
+						echo "<div class=\"msg-success\">The file '". $remote_file . "' was successfully removed and will be replaced.</div>";
+					} else {
+						echo "<div class=\"msg-error\">There was an error replacing the file '". $remote_file . "'.</div>";
+					}
+				}				
 				
 				$ret = ftp_nb_put($conn_id, $remote_file, $file, FTP_BINARY, FTP_AUTORESUME);
 				while(FTP_MOREDATA == $ret) {
@@ -612,15 +625,15 @@
 				}
 
 				if($ret == FTP_FINISHED) {
-					echo "File '" . $remote_file . "' uploaded successfully.<br>";
+					echo "<div class=\"msg-success\">File '" . $remote_file . "' uploaded successfully.</div>";
 				} else {
-					echo "Failed uploading file '" . $remote_file . "'.<br>";
+					echo "<div class=\"msg-error\">Failed uploading file '" . $remote_file . "'.</div>";
 				}
 				
 			}
 			
 		} else {
-			echo "Cannot connect to FTP server at " . $ftp_server . "<br>";
+			echo "<div class=\"msg-error\">Cannot connect to FTP server at " . $ftp_server . "</div>";
 		}
 	}
 	
@@ -659,14 +672,26 @@
 			echo $params['paths']['prod_html'] . $emailName;
 			echo "</a><br>";
 		}
+		if ( !$qa && !$live ) {
+			echo "HTML is in the output folder under '" . $emailName . "'.";
+		}
 		return 0;
 	}
 }	//close EmailGenerator class
+?>
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Marketing Email Generator - Travel Impressions</title>
+<link rel="stylesheet" type="text/css" href="style.css">
+</head>
+<body> 
  
+<?php
  
- 
- if ( isset($_POST['submit']) ) { 
-	
+if ( isset($_POST['submit']) ) { 
+	//$_FILES['excelsource']['error'] != 4
 	//var_dump($_POST);	//var_dump($_FILES);
 	
 	//Create new 'EmailGenerator' object.
@@ -688,26 +713,41 @@
 	//Build, Output, and FTP QA version of email
 	$emailHtml = $email->build_html( $emailData, 1);
 	$dump_result = $email->dump_html( $emailHtml );
-	//$email->push_ftp( $dump_result, 1, 1); 
+	if ( isset($_POST['qa_version']) ) {
+		$email->push_ftp( $dump_result, 1, 1 );
+	}
 
 	
 	//Build, Output, and FTP PROD version of email
 	$emailHtml = $email->build_html( $emailData);
 	$dump_result = $email->dump_html( $emailHtml );
-	//$email->push_ftp( $this->output . $dump_result );
-
+	if ( isset($_POST['prod_version']) ) {
+		echo "Going live";
+		$email->push_ftp( $this->output . $dump_result );
+	}
 	
-	$email->output_links( $dump_result );
+	echo "<hr>";
+
+	//Print links to QA or Production emails
+	if ( isset($_POST['qa_version']) ) {
+		$email->output_links( $dump_result, 1, 0 );
+	}
+	if ( isset($_POST['prod_version']) ) {
+		$email->output_links( $dump_result, 0, 1 );
+	}
+	$email->output_links( $dump_result, 0, 0 );
+	
+	
  }
   
-if (!isset($_POST['submit']) || isset($err) ) {
+if (!isset($_POST['submit']) ) {
 ?>
 
- <h1>Marketing Email Generator</h1>
- <h3>For use by: Email Marketing Interactive Artist</h3>
- <p>Take excel spreadsheet template as input.  Reads in that data and any files from the 'assets' folder to generate the email.</p>
+<h1>Marketing Email Generator</h1>
+<h3>For use by: Email Marketing Interactive Artist</h3>
+<p>Takes excel spreadsheet template as input.  Reads in that data and any files from the 'assets' folder to generate the email.</p>
  
- <form enctype='multipart/form-data' action='<?php echo $_SERVER['PHP_SELF']; ?>' method='POST'>
+<form enctype='multipart/form-data' action='<?php echo $_SERVER['PHP_SELF']; ?>' method='POST'>
 	<fieldset>
 		<legend>Required Assets:</legend>
 		<div class="form_item">
@@ -715,9 +755,15 @@ if (!isset($_POST['submit']) || isset($err) ) {
 			<input type="hidden" name="MAX_FILE_SIZE" value="1024000" />
 			<input type="file" name="excelSource" id="termsSource" size="50" />
 		</div>
-		<br>
-		<input type="submit" name="submit" value="Generate Email">
 	</fieldset>
- </form>
+	<br>
+	<input type="checkbox" name="qa_version" value="qa_version" CHECKED>Create QA Version<br>
+	<input type="checkbox" name="prod_version" value="prod_version">Create Production Version<br>
+	<br>
+	<input type="submit" name="submit" value="Generate Email">
+</form>
+
+<?php } ?>
  
- <?php } ?>
+</body>
+</html> 
