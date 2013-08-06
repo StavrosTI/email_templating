@@ -2,7 +2,8 @@
 /** 
  * EmailGenerator
  * 
- * 
+ * Reads in a Microsoft Excel source file and generates an HTML email based on pre-defined HTML 'modules'.  
+ * Files are then FTP'd to predefined paths on QA and Production servers.
  * 
  * Copyright (c) 2013 Travel Impressions
  * 
@@ -11,7 +12,7 @@
  * @author	   Stavros Louris for Travel Impressions - stavros.louris@travimp.com
  * @copyright  Copyright (c) 2013 Travel Impressions (http://www.travimp.com)
  * @license    http://www.gnu.org/licenses/old-licenses/lgpl-2.1.txt	LGPL
- * @version    0.1, 2013-07-29
+ * @version    0.1, 2013-08-06
  */
 
  //Global Error Reporting
@@ -33,12 +34,13 @@
  class EmailGenerator {
  
 	/** Class Properties **/
-	private $modules = "";							// Modules Directory
-	private $assets = "";							// Assets Directory
-	private $output = "";							// Output Directory
+	public $modules = "";							// Modules Directory
+	public $assets = "";							// Assets Directory
+	public $output = "";							// Output Directory
 	private $modulesArray = Array();				// array of files from input folder
 	private $assetsArray = Array();					// array of files from input folder
-	private $excelSourceSize = "email.html";		// Name of the email to be generated
+	private $outputArray = Array();					// array of log data
+	private $excelSourceSize = "email.html";		// Default name of the email to be generated
 	
 	private $ftpLogin = "jeffc";					// FTP Login
 	private $ftpPass = "cvq5am";					// FTP Password
@@ -46,9 +48,12 @@
 	private $ftpProdHost = "cobra";					// FTP Production host
 	private $ftpPort = "22";						// FTP Port
 	
-	private $emailName = "email.html";				// Name of the email to be generated
-	private $emailBrand = "";							
-	private $emailType = "";						
+	public $emailName = "email.html";				// Name of the email to be generated
+	public $emailBrand = "";						// 'Travel Impressions' or 'American Express'							
+	public $emailType = "";							// Name of the email campaign. E.G. 'Marketing Mondays'
+	public $emailSubject = "";						// Subject line of the email
+	public $emailDeadline = "";						// Due date for the content of the email
+	public $emailMailDate = "";						// Mailing dealinge for the email
 	
 	private	$logPath = "logs/";						// path for logs
 	private $logFile = "";							// log file
@@ -84,7 +89,6 @@
 	 */
 	private function write_log ( $logData ) {
 		file_put_contents($this->logFile, $logData . " - " . date('m-d-Y H:i:s'), FILE_APPEND | LOCK_EX);
-		file_put_contents($this->logFile, "Total processing time: " . $this->timer(2), FILE_APPEND | LOCK_EX);
 	}
 	
 	/**
@@ -116,75 +120,6 @@
 			$output .= "File: " . $entry[0] . ". Result: " . $entry[1] . ". Process Time: " . $entry[2] . "\n\r";
 		}
 		return file_put_contents( $this->logFile, $output );
-	}
-	
-	/**
-	 * Write processed file data to output directory.  Increment # replacements, if any.
-	 *
-	 * @param string		$fileName	Name of file being written
-	 * @param string		$fileData	Output file contents
-	 * @param int | bool	$changed	Changed flag. If there were replacements, flag will be set.
-	 *
-	 * @return bool	File write results
-	 */
-	private function write_replaced_files ( $fileName, $fileData, $changed ) {
-	
-		if ( $changed ) {
-			return file_put_contents( $this->output.$fileName, $fileData );
-		} else {
-			return file_put_contents( $this->unchanged.$fileName, $fileData );
-		}
-	}
-	
-	/**
-	 * Internal process timer.  Records timer milestone or resets timer, unix timestamps.
-	 *
-	 * @param int	$reset		Resets the starting point
-	 * @param int	$verbose	returns interval times. 1 for mark time.  2 for total time.
-	 *
-	 * @return 
-	 */
-	public function timer ( $verbose=1, $reset=0 ) {
-	
-		if ( $reset ) {
-			$this->startTime = $this->lastTime = microtime();	//reset timer
-			//echo "starting time: " . $this->startTime . "<br>";
-		} else {
-			$mark = microtime() - $this->lastTime;
-			$this->lastTime = microtime();
-			if ( $verbose == 1 ) {
-				return $mark;
-			} elseif ( $verbose == 2 ) {
-				
-				//echo "Ending time: " . microtime() . "<br>";
-				return ( microtime() - $this->startTime );
-			}
-		}
-	}
-	
-	/**
-	 * Internal stats counter.
-	 *
-	 * @param int	$reset		Resets the starting point
-	 * @param int	$verbose	returns interval times. 1 for mark time.  2 for total time.
-	 *
-	 * @return 
-	 */
-	public function stats ( $editMode=0, $verbose=0, $filesChanged=0, $changes=0 ) {
-	
-		if ( $editMode ) {
-			$this->totalReplacedFiles += $filesChanged;
-			$this->totalReplacements += $changes;
-		}
-		if ( $verbose == 1 ) {
-			return $this->totalInputFiles;
-		}
-		if ( $verbose == 2 ) {
-			return $this->totalReplacedFiles;
-		}
-		if ( $verbose == 3 ) {
-			return $this->totalReplacements;
-		}
 	}
 	
 	/**
@@ -291,25 +226,6 @@
 		}
 	}
 	
-	/**
-	 * Reads the 'terms' file and loads into the terms class property
-	 * 
-	 * @param string $file	File name
-	 */
-	public function get_replacement_terms ($file) {
-		//reading in 'terms' file
-		$fh = fopen($file, 'r');
-		if ( $fh ) {
-			$i=0;
-			
-			while(!feof($fh)) {
-				$line = fgets($fh);
-				$this->terms[$i] = explode( $this->termsSeperator, $line );
-				$i++;
-			}
-		}
-		var_dump($this->terms);
-	}
 	
 	/**
 	 * Scans the modules directory for html module files and loads them into the 'modulesArray' class prooperty
@@ -365,7 +281,7 @@
 			
 		$params = "";
 		
-		if ( $brand == "TravelImpressions" ) { 
+		if ( $brand == "Travel Impressions" ) { 
 
 			$params['paths'] = array(
 				'qa_html' => "http://qa.travimp.com/email/",
@@ -373,7 +289,7 @@
 				'prod_html' => "http://www.travimp.com/email/",
 				'prod_img' => "http://www.travimp.com/email/img/", 
 			);
-		} elseif ( $brand == "AmericanExpress" ) {
+		} elseif ( $brand == "American Express" ) {
 
 			$params['paths'] = array(
 				'qa_html' => "http://qa.myaev.com/email/",
@@ -381,25 +297,15 @@
 				'prod_html' => "http://www.myaev.com/email/",
 				'prod_img' => "http://www.myaev.com/email/img/" 
 			);
-		} else {
-		
-			//return error
 		}
-		
-		//email types --
-		//Makeover Mondays
-		//Marketing Mondays
-		//Two For Tuesdays
-		//Amazing Getaways
-		//Caribbean Getaways
-		//Mexico Getaways
-		//Groups
 		
 		return $params;
 	}
 	
 	/**
 	 * Read in Excel Source File.  Reads in the 'header' information seperately, then reads in one module section at a time.
+	 * 
+	 * @param string	sourceFileName	File name for PHPExcel class to work with. 
 	 */
 	public function read_excel_source ( $sourceFileName ) {
 		
@@ -412,12 +318,13 @@
 		
 		//Reader Excel Source 'Header'
 		$this->emailName = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B1')->getValue() ) ) );
-		$this->emailType = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B2')->getValue() ) ) );
-		$this->emailBrand = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B3')->getValue() ) ) );
-		$this->emailSubject = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B4')->getValue() ) ) );
+		//$this->emailType = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B2')->getValue() ) ) );
+		$this->emailType = ucwords( strtolower( $objWorksheet->getCell('B2')->getValue() ) );
+		//$this->emailBrand = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B3')->getValue() ) ) );
+		$this->emailBrand = ucwords( strtolower( $objWorksheet->getCell('B3')->getValue() ) );
+		$this->emailSubject = ucwords( strtolower( $objWorksheet->getCell('B4')->getValue() ) );
 		$this->emailDeadline = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B5')->getValue() ) ) );
 		$this->emailMailDate = str_replace( " ", "", ucwords( strtolower( $objWorksheet->getCell('B6')->getValue() ) ) );
-		
 		
 		$lastRow = $objWorksheet->getHighestRow();
 		
@@ -442,6 +349,7 @@
 					//echo "Start of new module: " . $module . "<br>";
 			}
 		}
+		
 		return $emailData;
 	}
 	
@@ -453,8 +361,7 @@
 	 */
 	public function build_html ( $emailData, $qa=0 ) {
 	
-		//TODO: add url link checker.
-		//TODO: add specs checker.
+		//TODO: add image dimensions and type checker.
 	
 		//Adding opening wrapper
 		$topHtml = $this->get_module('top');
@@ -523,7 +430,11 @@
 	}
 	
 	/**
-	 * FTP function
+	 * FTP functionality
+	 *
+	 * @param string 	fileName	Name of HTML source to ftp up
+	 * @param bool		assets		Flag, upload image assets
+	 * @param bool		qa			Flag, upload to qa
 	 */
 	public function push_ftp( $fileName, $assets=1, $qa=0 ) {
 		// FTP script adapted from http://nirvaat.com/blog/web-development/uploading-files-ftp-server-php-script/
@@ -532,20 +443,20 @@
 	
 		//Setup the remote directories
 		if ( $qa ) {
-			if ( $this->emailBrand = "TravelImpressions" ) {
+			if ( $this->emailBrand == "Travel Impressions" ) {
 				$remote_html_dir = "/home/sites/fyi/email";
 				$remote_assets_dir = "/home/sites/fyi/email/img";
-			} elseif ( $this->emailBrand = "AmericanExpress" ) {
+			} elseif ( $this->emailBrand == "American Express" ) {
 				$remote_html_dir = "/home/sites/myaev/email";
 				$remote_assets_dir = "/home/sites/myaev/email/img";
 			}
 		} else {
-			if ( $this->emailBrand = "TravelImpressions" ) {
-				$remote_html_dir = "/home/myaev/email";
-				$remote_assets_dir = "/home/myaev/email/img";
-			} elseif ( $this->emailBrand = "AmericanExpress" ) {
+			if ( $this->emailBrand == "Travel Impressions" ) {
 				$remote_html_dir = "/home/web/email";
 				$remote_assets_dir = "/home/web/email/img";
+			} elseif ( $this->emailBrand == "American Express" ) {
+				$remote_html_dir = "/home/myaev/email";
+				$remote_assets_dir = "/home/myaev/email/img";
 			}
 		}
 		//Don't FTP anything if no brand specified		
@@ -639,6 +550,10 @@
 	
 	/**
 	 * Write the html to the 'output' folder
+	 *
+	 * @param string	emailHtml	Contents of the Html email
+	 * @param string	emailName	Name of the output file.  If blank, takes the name from class property
+	 * @return string				The name used for output
 	 */
 	public function dump_html( $emailHtml, $emailName="" ) {
 	
@@ -654,26 +569,30 @@
 	
 	/**
 	 * Output the QA and Live Html Links
+	 * 
+	 * @param string 	emailName	Name of the email
+	 * @param bool		qa			Output QA Link
+	 * @param bool		prod		Output Production Link
 	 */
-	public function output_links( $emailName, $qa=1, $live=1 ) {
+	public function output_links( $emailName, $qa=1, $prod=1 ) {
 	
 		$params = $this->initialize_email_parameters( $this->emailType, $this->emailBrand );
 			//var_dump($params);
 			
 		if ( $qa ) {
-			echo "QA Email Link: ";
-			echo "<a href=\"". $params['paths']['qa_html'] . $emailName . "\">";
+			echo "<div class=\"output-links\">QA Email Link: ";
+			echo "<a href=\"". $params['paths']['qa_html'] . $emailName . "\" target=\"_blank\">";
 			echo $params['paths']['qa_html'] . $emailName;
 			echo "</a><br><br>";
 		}
-		if ( $live ) {
-			echo "Live Email Link: ";
-			echo "<a href=\"". $params['paths']['prod_html'] . $emailName . "\">";
+		if ( $prod ) {
+			echo "<div class=\"output-links\">Live Email Link: ";
+			echo "<a href=\"". $params['paths']['prod_html'] . $emailName . "\" target=\"_blank\">";
 			echo $params['paths']['prod_html'] . $emailName;
 			echo "</a><br>";
 		}
-		if ( !$qa && !$live ) {
-			echo "HTML is in the output folder under '" . $emailName . "'.";
+		if ( !$qa && !$prod ) {
+			echo "<div class=\"output-links\">HTML is in the output folder under '<i>" . $emailName . "</i>'.</div>";
 		}
 		return 0;
 	}
@@ -702,28 +621,34 @@ if ( isset($_POST['submit']) ) {
 		$_FILES['excelSource']['size']
 	);
 	
-	//validate mime types of template/source
+	// Todo: validate mime types of template/source.
 	//$replacer->file_validator( $_FILES['excelSource'],0,1);
+	
 	
 	$emailData = $email->read_excel_source( $_FILES['excelSource']['tmp_name'] );
 		//var_dump($emailData);
 	$email->get_assets();
 	$email->load_modules();
+				
+	echo "<p>Excel Source: " . $_FILES['excelSource']['name'] . "<br>";
+	echo "Email Name: " . $email->emailName . "<br>";
+	echo "Email Brand: " . $email->emailBrand . "<br>";
+	echo "Email Type: " . $email->emailType . "</p>";
  
 	//Build, Output, and FTP QA version of email
+	echo "<p>Processing QA Version...</p>";
 	$emailHtml = $email->build_html( $emailData, 1);
 	$dump_result = $email->dump_html( $emailHtml );
 	if ( isset($_POST['qa_version']) ) {
 		$email->push_ftp( $dump_result, 1, 1 );
 	}
 
-	
 	//Build, Output, and FTP PROD version of email
+	echo "<p>Processing Production Version...</p>";
 	$emailHtml = $email->build_html( $emailData);
 	$dump_result = $email->dump_html( $emailHtml );
 	if ( isset($_POST['prod_version']) ) {
-		echo "Going live";
-		$email->push_ftp( $this->output . $dump_result );
+		$email->push_ftp( $dump_result, 1 );
 	}
 	
 	echo "<hr>";
@@ -737,14 +662,15 @@ if ( isset($_POST['submit']) ) {
 	}
 	$email->output_links( $dump_result, 0, 0 );
 	
-	
+	echo "<br>";
+	echo "<a href=\"" . $_SERVER['PHP_SELF'] . "\">Back to Generator</a>";
  }
   
 if (!isset($_POST['submit']) ) {
 ?>
 
 <h1>Marketing Email Generator</h1>
-<h3>For use by: Email Marketing Interactive Artist</h3>
+<h2>For use by: Email Marketing Interactive Artist</h2>
 <p>Takes excel spreadsheet template as input.  Reads in that data and any files from the 'assets' folder to generate the email.</p>
  
 <form enctype='multipart/form-data' action='<?php echo $_SERVER['PHP_SELF']; ?>' method='POST'>

@@ -1,24 +1,41 @@
 body {
   font-family: helvetica, calibri, arial, 'sans serif';
   font-size: 1em;
+  color: #333333;
 }
 
-.msg-info {
+h1 {}
+h2 {}
+h3 {}
+h4 {}
+
+hr {}
+
+div.msg-info {
   color: #6F8A9F;
   font-style: italic;
 }
 
-.msg-success {
+div.msg-success {
   color: #2C922C;
-  font-style: italic;
 }
 
-.msg-warn {
+div.msg-warn {
   color: #C25305;
 }
 
-.msg-error {
+div.msg-error {
   padding: 5px;
   color: #990000;
   font-weight: 900;
 }
+
+div.output-links {
+
+}
+
+a {}
+a:link {}
+a:visited {}
+a:hover {}
+a:active {}
