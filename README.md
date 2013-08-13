@@ -6,14 +6,12 @@ This is a purpose built program for generating complete HTML for email marketing
 
 Release Notes
 ------------
-
 version 1.1 - 8.13.2013
---Modified modules: 2Offer, 3Offer, 4Offer, and sotm.
---Added usage guide to software package.
---
+*Modified modules: 2Offer, 3Offer, 4Offer, and sotm.
+*Added usage guide to software package.
 
 version 1.0 - 8.6.2013
---Initial working release.
+*Initial working release.
 
 <pre>
              ,-. 
