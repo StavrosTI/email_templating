@@ -684,7 +684,7 @@ if (!isset($_POST['submit']) ) {
 	</fieldset>
 	<br>
 	<input type="checkbox" name="qa_version" value="qa_version" CHECKED>Create QA Version<br>
-	<input type="checkbox" name="prod_version" value="prod_version">Create Production Version<br>
+	<input type="checkbox" name="prod_version" value="prod_version" CHECKED>Create Production Version<br>
 	<br>
 	<input type="submit" name="submit" value="Generate Email">
 </form>

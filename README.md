@@ -2,7 +2,7 @@ Marketing Email Generator
 ================================
 *View the [source of this content](https://github.com/prefectionist/email_templating).*
 
-This is a purpose built program for generating complete HTML for email marketing purposes.  It operates around a set of modules that are referenced by an Excel 'source file' for inclusion and content tags.  Finished content is then FTP to QA and Production servers.
+This is a purpose-built program for generating complete HTML for email marketing purposes.  It operates around a set of modules that are referenced by an Excel 'source file' for inclusion and content tags.  Finished content is then FTP to QA and Production servers.
 
 Release Notes
 ------------
